@@ -14,7 +14,6 @@ require "logger"
 require "rspec-benchmark"
 require "colored"
 require "securerandom"
-require 'snappy'
 require 'extlz4'
 require 'zstd-ruby'
 

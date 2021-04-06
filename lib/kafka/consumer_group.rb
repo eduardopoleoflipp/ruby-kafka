@@ -189,9 +189,17 @@ module Kafka
       if group_leader?
         @logger.info "Chosen as leader of group `#{@group_id}`"
 
+        # The leader consumer process @topics has no knowledge about topics other consumer
+        # processes have subscribed to. The only way to obtain this info is from the cluster info
+        # itself e.g @members
+        topics = Set.new
+        @members.each do |_member, metadata|
+          metadata.topics.each { |t| topics.add(t) }
+        end
+
         group_assignment = @assignor.assign(
           members: @members,
-          topics: @topics,
+          topics: topics,
         )
       end
 
