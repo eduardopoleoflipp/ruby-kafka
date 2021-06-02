@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-require 'set'
 
 module Kafka
 
@@ -20,32 +19,30 @@ module Kafka
     # @return [Hash<String, Array<Kafka::ConsumerGroup::Assignor::Partition>] a hash
     #   mapping member ids to partitions.
     def call(cluster:, members:, partitions:)
-      topics = Set.new
-      partitions_by_topic = Hash.new {|h, k| h[k] = [] }
+      partitions_per_member = Hash.new {|h, k| h[k] = [] }
+
+      members_ids = members.sort_by do |id, data| 
+        data.topics.size 
+      }.map { |id, data| id }.uniq
+      idx = 0
+
       partitions.each do |partition|
         topic = partition.topic
-        topics.add(topic)
-        partitions_by_topic[topic] << partition
-      end
-
-      members_by_topic = Hash.new {|h, k| h[k] = [] }
-      topics.each do |topic|
-        members.each do |id, metadata|
-          members_by_topic[topic] << id if metadata.topics.include?(topic)
+        while !members[members_ids[idx]].topics.include?(topic)
+          idx = next_index(members_ids, idx)
         end
+
+        partitions_per_member[members_ids[idx]] << partition
+        idx = next_index(members_ids, idx)
       end
-
-      partitions_per_member = Hash.new {|h, k| h[k] = [] }
-      topics.each do |topic|
-        topic_partitions = partitions_by_topic[topic]
-        topic_members = members_by_topic[topic]
-
-        topic_partitions.each_with_index do |partition, index|
-          partitions_per_member[topic_members[index % topic_members.count]] << partition
-        end
-      end
-
       partitions_per_member
+    end
+
+    def next_index(members_ids, idx)
+      idx += 1
+      idx = 0 if idx == members_ids.size
+
+      idx
     end
   end
 end
