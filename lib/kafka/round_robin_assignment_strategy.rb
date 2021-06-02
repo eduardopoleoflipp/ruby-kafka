@@ -23,7 +23,7 @@ module Kafka
 
       members_ids = members.sort_by do |id, data| 
         data.topics.size 
-      }.map { |id, data| id }.uniq
+      end.map { |id, data| id }.uniq
       idx = 0
 
       partitions.each do |partition|
