@@ -28,6 +28,7 @@ module Kafka
 
       partitions.each do |partition|
         topic = partition.topic
+
         while !members[members_ids[idx]].topics.include?(topic)
           idx = next_index(members_ids, idx)
         end

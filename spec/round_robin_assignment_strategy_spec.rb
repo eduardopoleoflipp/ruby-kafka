@@ -127,4 +127,53 @@ describe Kafka::RoundRobinAssignmentStrategy do
       expect(num_assigned).to be_within(1).of(num_partitions.to_f / assignments.count)
     end
   end
+
+  context "when the subscriptions are not identical" do
+    it "fairly assigns partions amongts all members regardless in the order they're given" do
+      members = {
+        "member1" => double(topics: ["topic1","topic2"]),
+        "member0" => double(topics: ["topic1"]),
+        "member2" => double(topics: ["topic1", "topic2", "topic3"])
+      }
+      partitions = [
+        partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
+        partition1 = double(:"partition1", topic: "topic2", partition_id: 0),
+        partition2 = double(:"partition2", topic: "topic2", partition_id: 1),
+        partition3 = double(:"partition3", topic: "topic3", partition_id: 0),
+        partition4 = double(:"partition4", topic: "topic3", partition_id: 1),
+        partition5 = double(:"partition5", topic: "topic3", partition_id: 2)
+      ]
+
+      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+      expect(assignments).to eq(
+        {
+          "member0"=>[partition0],
+          "member1"=>[partition1],
+          "member2"=>[partition2, partition3, partition4, partition5]
+        }
+      )
+    end
+  end
 end
+
+
+# C0, C1, C2,
+# t0, t1, t2, with 1, 2, and 3 partitions, respectively.
+# t0p0, t1p0, t1p1, t2p0, t2p1, t2p2.
+
+# C0 is subscribed to t0;
+# C1 is subscribed to t0, t1;
+# and C2 is subscribed to t0, t1, t2.
+
+# That assignment will be:
+# C0: [t0p0]
+# C1: [t1p0]
+# C2: [t1p1, t2p0, t2p1, t2p2]
+
+
+# result = { 
+#   C0: [t0p0],
+#   C1: [t1p0],
+#   C2: [t1p1, t2p0, t2p1, t2p2]
+# }
