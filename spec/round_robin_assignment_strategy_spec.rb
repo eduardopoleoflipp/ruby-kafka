@@ -128,8 +128,8 @@ describe Kafka::RoundRobinAssignmentStrategy do
     end
   end
 
-  context "when the subscriptions are not identical" do
-    it "fairly assigns partions amongts all members regardless in the order they're given" do
+  context "when subscriptions are not identical but might share some commone topics" do
+    it "fairly assigns partitions amongst all members regardles of the order provided" do
       members = {
         "member1" => double(topics: ["topic1","topic2"]),
         "member0" => double(topics: ["topic1"]),
@@ -154,6 +154,10 @@ describe Kafka::RoundRobinAssignmentStrategy do
         }
       )
     end
+  end
+
+  context "when there are not common topics subscriptions" do
+    it "assigns "
   end
 end
 
