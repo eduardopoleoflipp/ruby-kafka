@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'set'
 
 module Kafka
 
@@ -19,16 +20,38 @@ module Kafka
     # @return [Hash<String, Array<Kafka::ConsumerGroup::Assignor::Partition>] a hash
     #   mapping member ids to partitions.
     def call(cluster:, members:, partitions:)
-      partitions_per_member = {}
+      topics = Set.new
+      partitions_by_topic = Hash.new {|h, k| h[k] = [] }
+      partitions.each do |partition|
+        topic = partition.topic
+        topics.add(topic)
+        partitions_by_topic[topic] << partition
+      end
 
-      # This is just a dummy (prove of concept) assigment strategy. It assigns all topic
-      # partitions to the one member that belongs to that topic.
-      members.each do |member, metadata|
-        member_partitions = partitions.select { |p| metadata.topics.include?(p.topic) }
-        partitions_per_member[member] = member_partitions
+      members_by_topic = Hash.new {|h, k| h[k] = [] }
+      topics.each do |topic|
+        members.each do |id, metadata|
+          members_by_topic[topic] << id if metadata.topics.include?(topic)
+        end
+      end
+
+      partitions_per_member = Hash.new {|h, k| h[k] = [] }
+      topics.each do |topic|
+        topic_partitions = partitions_by_topic[topic]
+        topic_members = members_by_topic[topic]
+
+        topic_partitions.each_with_index do |partition, index|
+          partitions_per_member[topic_members[index % topic_members.count]] << partition
+        end
       end
 
       partitions_per_member
     end
   end
 end
+
+
+
+
+
+
