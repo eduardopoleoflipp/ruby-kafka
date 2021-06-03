@@ -138,11 +138,11 @@ describe Kafka::RoundRobinAssignmentStrategy do
 
       # do I need to sort this too?
       partitions = [
-        partition1 = double(:"partition1", topic: "topic2", partition_id: 0),
         partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
-        partition4 = double(:"partition4", topic: "topic3", partition_id: 1),
+        partition1 = double(:"partition1", topic: "topic2", partition_id: 0),
         partition2 = double(:"partition2", topic: "topic2", partition_id: 1),
         partition3 = double(:"partition3", topic: "topic3", partition_id: 0),
+        partition4 = double(:"partition4", topic: "topic3", partition_id: 1),
         partition5 = double(:"partition5", topic: "topic3", partition_id: 2)
       ]
 
@@ -150,9 +150,7 @@ describe Kafka::RoundRobinAssignmentStrategy do
 
       expect(assignments["member0"]).to match_array([partition0])
       expect(assignments["member1"]).to match_array([partition1])
-      expect(assignments["member2"]).to match_array([
-        partition2, partition3, partition4, partition5
-      ])
+      expect(assignments["member2"]).to match_array([partition2, partition3, partition4, partition5])
     end
   end
 

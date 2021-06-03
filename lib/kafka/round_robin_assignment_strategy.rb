@@ -26,7 +26,9 @@ module Kafka
       end.map { |id, data| id }.uniq
       idx = 0
 
-      partitions.each do |partition|
+      sorted_partitions = partitions.sort_by { |partition| partition.topic }
+
+      sorted_partitions.each do |partition|
         topic = partition.topic
 
         while !members[members_ids[idx]].topics.include?(topic)
