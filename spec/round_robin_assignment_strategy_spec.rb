@@ -131,28 +131,28 @@ describe Kafka::RoundRobinAssignmentStrategy do
   context "when subscriptions are not identical but might share some commone topics" do
     it "fairly assigns partitions amongst all members regardles of the order provided" do
       members = {
-        "member1" => double(topics: ["topic1","topic2"]),
+        "member2" => double(topics: ["topic1", "topic2", "topic3"]),
         "member0" => double(topics: ["topic1"]),
-        "member2" => double(topics: ["topic1", "topic2", "topic3"])
+        "member1" => double(topics: ["topic1","topic2"])
       }
+
+      # do I need to sort this too?
       partitions = [
-        partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
         partition1 = double(:"partition1", topic: "topic2", partition_id: 0),
+        partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
+        partition4 = double(:"partition4", topic: "topic3", partition_id: 1),
         partition2 = double(:"partition2", topic: "topic2", partition_id: 1),
         partition3 = double(:"partition3", topic: "topic3", partition_id: 0),
-        partition4 = double(:"partition4", topic: "topic3", partition_id: 1),
         partition5 = double(:"partition5", topic: "topic3", partition_id: 2)
       ]
 
       assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
 
-      expect(assignments).to eq(
-        {
-          "member0"=>[partition0],
-          "member1"=>[partition1],
-          "member2"=>[partition2, partition3, partition4, partition5]
-        }
-      )
+      expect(assignments["member0"]).to match_array([partition0])
+      expect(assignments["member1"]).to match_array([partition1])
+      expect(assignments["member2"]).to match_array([
+        partition2, partition3, partition4, partition5
+      ])
     end
   end
 
