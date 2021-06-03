@@ -18,17 +18,14 @@ module Kafka
     #   partitions the consumer group processes
     # @return [Hash<String, Array<Kafka::ConsumerGroup::Assignor::Partition>] a hash
     #   mapping member ids to partitions.
+
     def call(cluster:, members:, partitions:)
       partitions_per_member = Hash.new {|h, k| h[k] = [] }
-
-      members_ids = members.sort_by do |id, data| 
-        data.topics.size 
-      end.map { |id, data| id }.uniq
+      relevant_partitions = valid_sorted_partitions(members, partitions)
+      members_ids = members.keys
       idx = 0
 
-      sorted_partitions = partitions.sort_by { |partition| partition.topic }
-
-      sorted_partitions.each do |partition|
+      relevant_partitions.each do |partition|
         topic = partition.topic
 
         while !members[members_ids[idx]].topics.include?(topic)
@@ -38,7 +35,15 @@ module Kafka
         partitions_per_member[members_ids[idx]] << partition
         idx = next_index(members_ids, idx)
       end
+
       partitions_per_member
+    end
+
+    def valid_sorted_partitions(members, partitions)
+      subscribed_topics = members.map { |id, metadata| metadata&.topics }.flatten.compact
+      partitions
+        .select { |partition| subscribed_topics.include?(partition.topic) }
+        .sort_by { |partition| partition.topic }
     end
 
     def next_index(members_ids, idx)

@@ -155,85 +155,305 @@ describe Kafka::RoundRobinAssignmentStrategy do
   end
 
   # all listeners subscribe to the same topics
-  context 'when there is a listener not subscribed to anything' do
-    it 'does NOT produces assignments' do
-      members = { 'member1' => nil }
-      partitions = []
+  context 'phobos' do
+    context 'when there is a listener not subscribed to anything' do
+      it 'does NOT produces assignments' do
+        members = { 'member1' => nil }
+        partitions = []
 
-      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+        assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
 
-      expect(assignments).to eq({})
+        expect(assignments).to eq({}) # is this correct?
+      end
+    end
+
+    context 'when there is a listener subscription but not matching partition' do
+      it 'does NOT produces assignments' do
+        members = { 'member1' => double(topics: ['topic1']) }
+        partitions = []
+
+        assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+        expect(assignments).to eq({})
+      end
+    end
+
+    context 'when there is 1 listener subscribed to 1 topic with 1 partition' do
+      it 'assigns the partition to the listener' do
+        members = { 'member1' => double(topics: ['topic1']) }
+        partitions = [
+           partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
+        ]
+
+        assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+        expect(assignments).to eq({
+          'member1' => [partition0]
+        })
+      end
+    end
+
+    context 'when there is 1 listener subscribed to 1 topic with multiple partitions' do
+      it 'assigns all partitions to the listener' do
+        members = { 'member1' => double(topics: ['topic1']) }
+        partitions = [
+           partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
+           partition1 = double(:"partition0", topic: "topic1", partition_id: 1),
+        ]
+
+        assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+        expect(assignments).to eq({
+          'member1' => [partition0, partition1]
+        })
+      end
+    end
+
+    context 'when there is 1 listeners subscribed to 1 topic and there are multiple topic partitions' do
+      it 'only assigns partitions for the subscribed topic' do
+        members = { 'member1' => double(topics: ['topic1']) }
+        partitions = [
+           partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
+           partition1 = double(:"partition0", topic: "topic1", partition_id: 1),
+           partition2 = double(:"partition0", topic: "topic2", partition_id: 0),
+        ]
+
+        assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+        expect(assignments).to eq({
+          'member1' => [partition0, partition1]
+        })
+      end
+    end
+
+    context 'when there are 2 listeners subscribed to 1 topic but only 1 partition' do
+      it 'only assigns the partition to 1 listener' do
+        members = {
+          'member1' => double(topics: ['topic1']),
+          'member2' => double(topics: ['topic1'])
+        }
+        partitions = [
+           partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
+        ]
+
+        assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+        expect(assignments).to eq({
+          'member1' => [partition0]
+        })
+      end
+    end
+
+    context 'when there are 2 listeners subscribed to 1 topic with 2 partitions' do
+      it 'each listener gets a partition' do
+        members = {
+          'member1' => double(topics: ['topic1']),
+          'member2' => double(topics: ['topic1'])
+        }
+        partitions = [
+           partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
+           partition1 = double(:"partition1", topic: "topic1", partition_id: 1),
+        ]
+
+        assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+        expect(assignments).to eq({
+          'member1' => [partition0],
+          'member2' => [partition1]
+        })
+      end
+    end
+
+    context 'when there are 2 listeners subscribed to 1 topic with multiple even number of partitions' do
+      it 'produces a balanced assignment' do
+        members = {
+          'member1' => double(topics: ['topic1']),
+          'member2' => double(topics: ['topic1'])
+        }
+        partitions = [
+           partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
+           partition1 = double(:"partition1", topic: "topic1", partition_id: 1),
+           partition2 = double(:"partition2", topic: "topic1", partition_id: 2),
+           partition3 = double(:"partition3", topic: "topic1", partition_id: 3),
+           partition4 = double(:"partition4", topic: "topic1", partition_id: 4),
+           partition5 = double(:"partition5", topic: "topic1", partition_id: 5),
+        ]
+
+        assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+        expect(assignments).to eq({
+          'member1' => [partition0, partition2, partition4],
+          'member2' => [partition1, partition3, partition5],
+        })
+      end
+    end
+
+    context 'when there are 2 listeners subscribed to 1 topic with multiple odd number of partitions' do
+      it 'produces a quasi balanced assignment' do
+        members = {
+          'member1' => double(topics: ['topic1']),
+          'member2' => double(topics: ['topic1'])
+        }
+        partitions = [
+           partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
+           partition1 = double(:"partition1", topic: "topic1", partition_id: 1),
+           partition2 = double(:"partition2", topic: "topic1", partition_id: 2),
+           partition3 = double(:"partition3", topic: "topic1", partition_id: 3),
+           partition4 = double(:"partition4", topic: "topic1", partition_id: 4),
+        ]
+
+        assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+        expect(assignments).to eq({
+          'member1' => [partition0, partition2, partition4],
+          'member2' => [partition1, partition3],
+        })
+      end
+    end
+
+    context 'when there are 2 listeners subscribed to 2 different topics with 1 partition' do
+      it 'assigns the partitions to the respective subscribed listeners' do
+        members = {
+          'member1' => double(topics: ['topic1']),
+          'member2' => double(topics: ['topic2'])
+        }
+        partitions = [
+           partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
+           partition1 = double(:"partition1", topic: "topic2", partition_id: 1),
+        ]
+
+        assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+        expect(assignments).to eq({
+          'member1' => [partition0],
+          'member2' => [partition1],
+        })
+      end
+    end
+
+    context 'when there are 2 listener subscribed to 2 different topics with multiple partitions' do
+      it 'assigns the partitions to the respective subscribed listeners' do
+        members = {
+          'member1' => double(topics: ['topic1']),
+          'member2' => double(topics: ['topic2'])
+        }
+        partitions = [
+           partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
+           partition1 = double(:"partition0", topic: "topic1", partition_id: 0),
+           partition2 = double(:"partition1", topic: "topic2", partition_id: 1),
+           partition3 = double(:"partition1", topic: "topic2", partition_id: 1),
+           partition4 = double(:"partition1", topic: "topic2", partition_id: 1),
+        ]
+
+        assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+        expect(assignments).to eq({
+          'member1' => [partition0, partition1],
+          'member2' => [partition2, partition3, partition4],
+        })
+      end
+    end
+
+    context 'when there is a mix variety of topic subscriptions and partition counts' do
+      it 'produces balanced assignments' do
+        members = {
+          'member1' => double(topics: ['topic1']),
+          'member2' => double(topics: ['topic2']),
+          'member3' => double(topics: ['topic2']),
+          'member4' => double(topics: ['topic3']),
+          'member5' => double(topics: ['topic3']),
+          'member6' => double(topics: ['topic3']),
+          'member7' => double(topics: ['topic4'])
+        }
+        partitions = [
+           partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
+           partition1 = double(:"partition1", topic: "topic1", partition_id: 0),
+           partition2 = double(:"partition2", topic: "topic2", partition_id: 1),
+           partition3 = double(:"partition3", topic: "topic2", partition_id: 1),
+           partition4 = double(:"partition4", topic: "topic2", partition_id: 1),
+           partition5 = double(:"partition5", topic: "topic3", partition_id: 1),
+           partition6 = double(:"partition6", topic: "topic3", partition_id: 1),
+           partition7 = double(:"partition7", topic: "topic3", partition_id: 1),
+           partition8 = double(:"partition8", topic: "topic3", partition_id: 1),
+           partition9 = double(:"partition9", topic: "topic3", partition_id: 1),
+        ]
+
+        assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+
+        expect(assignments['member1'].size).to eq(2)
+        expect(assignments['member1'].map(&:topic).uniq).to eq(['topic1'])
+
+        expect(assignments['member2'].size).to eq(2)
+        expect(assignments['member2'].map(&:topic).uniq).to eq(['topic2'])
+
+        expect(assignments['member3'].size).to eq(1)
+        expect(assignments['member3'].map(&:topic).uniq).to eq(['topic2'])
+
+        expect(assignments['member4'].size).to eq(2)
+        expect(assignments['member4'].map(&:topic).uniq).to eq(['topic3'])
+
+        expect(assignments['member5'].size).to eq(2)
+        expect(assignments['member5'].map(&:topic).uniq).to eq(['topic3'])
+
+        expect(assignments['member6'].size).to eq(1)
+        expect(assignments['member6'].map(&:topic).uniq).to eq(['topic3'])
+
+        expect(assignments['member7'].size).to eq(0)
+      end
+    end
+
+    context 'when the partitions are given out of order' do
+      it 'produces balanced assignments' do
+        members = {
+          'member1' => double(topics: ['topic1']),
+          'member2' => double(topics: ['topic2']),
+          'member3' => double(topics: ['topic2']),
+          'member4' => double(topics: ['topic3']),
+          'member5' => double(topics: ['topic3']),
+          'member6' => double(topics: ['topic3']),
+          'member7' => double(topics: ['topic4'])
+        }
+
+        # Without sorting the partitions by topic this input would 
+        # produce an assignment such as:
+        # member2 => [partition4, partition3]
+        # member3 => []
+        # which is not well balanced
+        partitions = [
+           partition0 = double(:"partition0", topic: "topic1", partition_id: 0),
+           partition1 = double(:"partition1", topic: "topic1", partition_id: 0),
+           partition4 = double(:"partition4", topic: "topic2", partition_id: 1),
+           partition5 = double(:"partition5", topic: "topic3", partition_id: 1),
+           partition6 = double(:"partition6", topic: "topic3", partition_id: 1),
+           partition7 = double(:"partition7", topic: "topic3", partition_id: 1),
+           partition8 = double(:"partition8", topic: "topic3", partition_id: 1),
+           partition3 = double(:"partition3", topic: "topic2", partition_id: 1),
+           partition9 = double(:"partition9", topic: "topic3", partition_id: 1),
+        ]
+
+        assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+        expect(assignments['member1'].size).to eq(2)
+        expect(assignments['member1'].map(&:topic).uniq).to eq(['topic1'])
+
+        expect(assignments['member2'].size).to eq(1)
+        expect(assignments['member2'].map(&:topic).uniq).to eq(['topic2'])
+
+        expect(assignments['member3'].size).to eq(1)
+        expect(assignments['member3'].map(&:topic).uniq).to eq(['topic2'])
+
+        expect(assignments['member4'].size).to eq(2)
+        expect(assignments['member4'].map(&:topic).uniq).to eq(['topic3'])
+
+        expect(assignments['member5'].size).to eq(2)
+        expect(assignments['member5'].map(&:topic).uniq).to eq(['topic3'])
+
+        expect(assignments['member6'].size).to eq(1)
+        expect(assignments['member6'].map(&:topic).uniq).to eq(['topic3'])
+
+        expect(assignments['member7'].size).to eq(0)
+      end
     end
   end
-
-  context 'when there is a listener subscription but not matching partition' do
-    it 'does NOT produces assignments'
-  end
-
-  context 'when there is 1 listener subscribed to 1 topic with 1 partition' do
-    it 'assigns the partition to the listener'
-  end
-
-  context 'when there is 1 listener subscribed to 1 topic with multiple partitions' do
-    it 'assigns all partitions to the listener'
-  end
-
-  context 'when there are partitions for other topics with not subscriptions' do
-    it 'only assigns the relevant partitions'
-  end
-
-  context 'when there are 2 listeners subscribed to 1 topic but only 1 partition' do
-    it 'only assigns the partition to only 1 listener'
-  end
-
-  context 'when there are 2 listeners subscribed to 1 topic with 2 partitions' do
-    it 'each listener gets a partition'
-  end
-
-  context 'when there are 2 listeners subscribed to 1 topic with multiple even number of partitions' do
-    it 'produces a balanced assignment'
-  end
-
-  context 'when there are 2 listeners subscribed to 1 topic with multiple odd number of partitions' do
-    it 'produces a quasi balanced assignment'
-  end
-
-  context 'when there are 2 listeners subscribed to 2 different topics with 1 partition' do
-    it 'assigns the partitions to the respective subscribed listeners'
-  end
-
-  context 'when there are 2 listener subscribed to 2 different topics with multiple partitions' do
-    it 'assigns the partitions to the respective subscribed listeners'
-  end
-
-  context 'when there is a mix variety of topic subscriptions and partition counts' do
-    it 'produces balanced assignments'
-  end
-
-  context 'when the partitions are given out of order' do
-    it 'produces balanced assignments'
-  end
-
-
 end
-
-
-# C0, C1, C2,
-# t0, t1, t2, with 1, 2, and 3 partitions, respectively.
-# t0p0, t1p0, t1p1, t2p0, t2p1, t2p2.
-
-# C0 is subscribed to t0;
-# C1 is subscribed to t0, t1;
-# and C2 is subscribed to t0, t1, t2.
-
-# That assignment will be:
-# C0: [t0p0]
-# C1: [t1p0]
-# C2: [t1p1, t2p0, t2p1, t2p2]
-
-
-# result = { 
-#   C0: [t0p0],
-#   C1: [t1p0],
-#   C2: [t1p1, t2p0, t2p1, t2p2]
-# }
