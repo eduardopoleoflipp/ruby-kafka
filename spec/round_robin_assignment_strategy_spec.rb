@@ -154,9 +154,67 @@ describe Kafka::RoundRobinAssignmentStrategy do
     end
   end
 
-  context "when there are not common topics subscriptions" do
-    it "assigns "
+  # all listeners subscribe to the same topics
+  context 'when there is a listener not subscribed to anything' do
+    it 'does NOT produces assignments' do
+      members = { 'member1' => nil }
+      partitions = []
+
+      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+      expect(assignments).to eq({})
+    end
   end
+
+  context 'when there is a listener subscription but not matching partition' do
+    it 'does NOT produces assignments'
+  end
+
+  context 'when there is 1 listener subscribed to 1 topic with 1 partition' do
+    it 'assigns the partition to the listener'
+  end
+
+  context 'when there is 1 listener subscribed to 1 topic with multiple partitions' do
+    it 'assigns all partitions to the listener'
+  end
+
+  context 'when there are partitions for other topics with not subscriptions' do
+    it 'only assigns the relevant partitions'
+  end
+
+  context 'when there are 2 listeners subscribed to 1 topic but only 1 partition' do
+    it 'only assigns the partition to only 1 listener'
+  end
+
+  context 'when there are 2 listeners subscribed to 1 topic with 2 partitions' do
+    it 'each listener gets a partition'
+  end
+
+  context 'when there are 2 listeners subscribed to 1 topic with multiple even number of partitions' do
+    it 'produces a balanced assignment'
+  end
+
+  context 'when there are 2 listeners subscribed to 1 topic with multiple odd number of partitions' do
+    it 'produces a quasi balanced assignment'
+  end
+
+  context 'when there are 2 listeners subscribed to 2 different topics with 1 partition' do
+    it 'assigns the partitions to the respective subscribed listeners'
+  end
+
+  context 'when there are 2 listener subscribed to 2 different topics with multiple partitions' do
+    it 'assigns the partitions to the respective subscribed listeners'
+  end
+
+  context 'when there is a mix variety of topic subscriptions and partition counts' do
+    it 'produces balanced assignments'
+  end
+
+  context 'when the partitions are given out of order' do
+    it 'produces balanced assignments'
+  end
+
+
 end
 
 
