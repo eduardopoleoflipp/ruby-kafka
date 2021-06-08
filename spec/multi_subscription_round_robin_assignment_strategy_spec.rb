@@ -132,4 +132,207 @@ describe Kafka::MultiSubscriptionRoundRobinAssignmentStrategy do
       end
     end
   end
+
+  context 'one consumer no subscriptions or topics / partitions' do
+    it 'returns empty assignments' do
+      members = { 'member1' => nil }
+      partitions = []
+
+      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+      expect(assignments).to eq({})
+    end
+  end
+
+  context 'one consumer with subscription but no matching topic partition' do
+    it 'returns empty assignments' do
+      members = { 'member1' => double(topics: ['topic1']) }
+      partitions = []
+
+      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+      expect(assignments).to eq({})
+    end
+  end
+
+  context 'one consumer subscribed to one topic with one partition' do
+    it 'assigns the partition to the consumer' do
+      members = { 'member1' => double(topics: ['topic1']) }
+      partitions = [
+         t1p0 = double(:"t1p0", topic: "topic1", partition_id: 0),
+      ]
+
+      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+      expect(assignments).to eq({
+        'member1' => [t1p0]
+      })
+    end
+  end
+
+  context 'one consumer subscribed to one topic with multiple partitions' do
+    it 'assigns all partitions to the consumer' do
+      members = { 'member1' => double(topics: ['topic1']) }
+      partitions = [
+         t1p0 = double(:"t1p0", topic: "topic1", partition_id: 0),
+         t1p1 = double(:"t1p1", topic: "topic1", partition_id: 1),
+      ]
+
+      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+      expect(assignments).to eq({
+        'member1' => [t1p0, t1p1]
+      })
+    end
+  end
+
+  context 'one consumer subscribed to one topic but with multiple different topic partitions' do
+    it 'only assigns partitions for the subscribed topic' do
+      members = { 'member1' => double(topics: ['topic1']) }
+      partitions = [
+         t1p0 = double(:"t1p0", topic: "topic1", partition_id: 0),
+         t1p1 = double(:"t1p1", topic: "topic1", partition_id: 1),
+         t2p0 = double(:"t2p0", topic: "topic2", partition_id: 0),
+      ]
+
+      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+      expect(assignments).to eq({
+        'member1' => [t1p0, t1p1]
+      })
+    end
+  end
+
+  context 'one consumer subscribed to multiple topics' do
+    it 'assigns all the topics partitions to the consumer' do
+      members = { 'member1' => double(topics: ['topic1', 'topic2']) }
+      partitions = [
+         t1p0 = double(:"t1p0", topic: "topic1", partition_id: 0),
+         t1p1 = double(:"t1p1", topic: "topic1", partition_id: 1),
+         t2p0 = double(:"t2p0", topic: "topic2", partition_id: 0),
+      ]
+
+      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+      expect(assignments).to eq({
+        'member1' => [t1p0, t1p1, t2p0]
+      })
+    end
+  end
+
+  context 'two consumers with one topic and only one partition' do
+    it 'only assigns the partition to one consumer' do
+      members = {
+        'member1' => double(topics: ['topic1']),
+        'member2' => double(topics: ['topic1'])
+      }
+      partitions = [
+         t1p0 = double(:"t1p0", topic: "topic1", partition_id: 0),
+      ]
+
+      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+      expect(assignments).to eq({
+        'member1' => [t1p0]
+      })
+    end
+  end
+
+  context 'two consumers subscribed to one topic with two partitions' do
+    it 'assigns a partition to each consumer' do
+      members = {
+        'member1' => double(topics: ['topic1']),
+        'member2' => double(topics: ['topic1'])
+      }
+      partitions = [
+         t1p0 = double(:"t1p0", topic: "topic1", partition_id: 0),
+         t1p1 = double(:"partition1", topic: "topic1", partition_id: 1),
+      ]
+
+      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+      expect(assignments).to eq({
+        'member1' => [t1p0],
+        'member2' => [t1p1]
+      })
+    end
+  end
+
+  context 'multiple consumers with mixed topics subscriptions' do
+    it 'creates a balanced assignment' do
+      members = {
+        'member1' => double(topics: ['topic1']),
+        'member2' => double(topics: ['topic1', 'topic2']),
+        'member3' => double(topics: ['topic1'])
+      }
+      partitions = [
+         t1p0 = double(:"partition0", topic: "topic1", partition_id: 0),
+         t1p1 = double(:"partition1", topic: "topic1", partition_id: 1),
+         t1p2 = double(:"partition1", topic: "topic1", partition_id: 2),
+         t2p0 = double(:"partition1", topic: "topic2", partition_id: 0),
+         t2p1 = double(:"partition1", topic: "topic2", partition_id: 1),
+      ]
+
+      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+      expect(assignments).to eq({
+        'member1' => [t1p0],
+        'member2' => [t1p1, t2p0, t2p1],
+        'member3' => [t1p2]
+      })
+    end
+  end
+
+  context 'two consumers subscribed to two topics with three partitions each' do
+    it 'creates a balanced assignment' do
+      members = {
+        'member1' => double(topics: ['topic1', 'topic2']),
+        'member2' => double(topics: ['topic1', 'topic2'])
+      }
+      partitions = [
+         t1p0 = double(:"partition0", topic: "topic1", partition_id: 0),
+         t1p1 = double(:"partition1", topic: "topic1", partition_id: 1),
+         t1p2 = double(:"partition1", topic: "topic1", partition_id: 2),
+         t2p0 = double(:"partition1", topic: "topic2", partition_id: 0),
+         t2p1 = double(:"partition1", topic: "topic2", partition_id: 1),
+         t2p2 = double(:"partition1", topic: "topic2", partition_id: 2),
+      ]
+
+      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+      expect(assignments).to eq({
+        'member1' => [t1p0, t1p2, t2p1],
+        'member2' => [t1p1, t2p0, t2p2]
+      })
+    end
+  end
+
+  context 'many consumers subscribed to one topic with partitions given out of order' do
+    it 'produces balanced assignments' do
+      members = {
+        'member1' => double(topics: ['topic1']),
+        'member2' => double(topics: ['topic1']),
+        'member3' => double(topics: ['topic2']),
+      }
+
+      partitions = [
+         t2p0 = double(:"partition1", topic: "topic2", partition_id: 0),
+         t1p0 = double(:"partition0", topic: "topic1", partition_id: 0),
+         t2p1 = double(:"partition1", topic: "topic2", partition_id: 1),
+         t1p1 = double(:"partition1", topic: "topic1", partition_id: 1),
+      ]
+
+      assignments = strategy.call(cluster: nil, members: members, partitions: partitions)
+
+      # Without sorting the partitions by topic this input would produce a non balanced assignment:
+      # member1 => [t1p0, t1p1]
+      # member2 => []
+      # member3 => [t2p0, t2p1]
+      expect(assignments).to eq({
+        'member1' => [t1p0],
+        'member2' => [t1p1],
+        'member3' => [t2p0, t2p1]
+      })
+    end
+  end
 end
