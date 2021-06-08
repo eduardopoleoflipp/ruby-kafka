@@ -3,6 +3,7 @@
 require "set"
 require "kafka/consumer_group/assignor"
 require "kafka/round_robin_assignment_strategy"
+require "kafka/multi_subscription_round_robin_assignment_strategy"
 
 module Kafka
   class ConsumerGroup
