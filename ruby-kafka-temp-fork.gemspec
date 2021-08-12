@@ -5,19 +5,19 @@ lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'kafka/version'
 
-Gem::Specification.new do |spec|
-  spec.name          = "ruby-kafka"
+a = Gem::Specification.new do |spec|
+  spec.name          = "ruby-kafka-temp-fork"
   spec.version       = Kafka::VERSION
-  spec.authors       = ["Daniel Schierbeck"]
-  spec.email         = ["daniel.schierbeck@gmail.com"]
+  spec.authors       = ["Eduardo Poleo"]
+  spec.email         = ["eduardo.poleo@flipp.com"]
 
-  spec.summary       = "A client library for the Kafka distributed commit log."
+  spec.summary       = "A temp fork for ruby kafka"
 
   spec.description   = <<-DESC.gsub(/^    /, "").strip
-    A client library for the Kafka distributed commit log.
+    This is just a temp fork for the ruby kafka gem to make it easier to test pending changes.
   DESC
 
-  spec.homepage      = "https://github.com/zendesk/ruby-kafka"
+  spec.homepage      = "https://github.com/eduardopoleoflipp/ruby-kafka"
   spec.license       = "Apache-2.0"
 
   spec.required_ruby_version = '>= 2.1.0'
@@ -52,3 +52,4 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "gssapi", ">= 1.2.0"
   spec.add_development_dependency "stackprof"
 end
+p `git ls-files -z`.split("\x0")
